@@ -85,8 +85,8 @@ SRSFN_wrapper<-function(filenames, TSSregions, MARG = 0, CUTOFF=100,  ADJ=0.5, p
 
 #' Auxilary function for loading and saving files
 #'
-#' @param love Do you love cats? Defaults to TRUE.
-#' @keywords cats
+#' @param filename Name of the file to be read and saved to binary format
+#' @keywords binary
 #' @export
 #' @examples
 #' load.save()
@@ -110,22 +110,13 @@ load.save<- function(filename)
   return(NULL)
 }
 
-##############################################################################
-                                        #Input:
-                                        #Output:
-                                        #Description:
 
-##reads.per.TSSfunction(TSSinterval, midpoints, margin)
-                                        #{
-                                        #  TSSID=which(midpoints<(TSSinterval[2]+margin) &
-                                        #              midpoints>(TSSinterval[1]-margin))
-                                        # return(midpoints[TSSID])
-                                        #}
+#' Auxilary function for loading binary datasets
+#'
+#' @param filename Name of the file to be read and saved to binary format
+#' @keywords binary
+#' @export
 
-#############################################################################
-                                        #Input:
-                                        #Output:
-                                        #Description:
 load.dataset<-function(filename)
 {
   load(paste(filename, ".Rdata", sep=""))
@@ -133,10 +124,18 @@ load.dataset<-function(filename)
   return(temp)
 }
 
-##############################################################################
-                                        #Input:
-                                        #Output:
-                                        #Description:
+
+#' Function that retrieves read coordinates that fall into a TSS
+#'
+#' @param heavy a list of .bed datasets containing reads. Usually a large object, thus called heavy.
+#' @param TSSinterval genomic coordinates specifying a single interval of interest - e.g. a TSS
+#' @param margin optional parameter specifying additional margin to put over TSS interval on top of the default +/-1000 endoced by parameter p.
+#' @param i index of current TSS interval investigated (for progress bar purposes)
+#' @param N total number of TSS intervals to investigate (for progress bar purposes)
+#' @keywords
+#' @export
+#' @examples
+
 get.TSS.reads<-function(heavy, TSSinterval, margin, i, N)
 {
   if ((i %% round(N/50))==0)
@@ -161,10 +160,14 @@ get.TSS.reads<-function(heavy, TSSinterval, margin, i, N)
   return(output)
 }
 
-#############################################################################
-                                        #Input:
-                                        #Output:
-                                        #Description:
+#' Function that automatically sets the bandwidth (smoothness) for the read density curves.
+#'
+#' @param current.TSS a list of read coordinates falling to the currently investigated TSS region. Each list entry corresponds to a different sample / bed file.
+#' @param n=256 maximal interpolation points of the density estimation. The larger the slower the shift calculations will be.
+#' @param method method. Leave it alone. nrd works fine. Artifact of old investigations
+#' @keywords
+#' @export
+#' @examples
 
 get.bandwidth<-function(current.TSS, n=256, method="nrd")
 {
@@ -175,6 +178,17 @@ get.bandwidth<-function(current.TSS, n=256, method="nrd")
   bandwidth<-mean(unlist(all.bandwidth))
   return(bandwidth)
 }
+
+#' Function that estimates densities of reads over TSS for all samples. 
+#'
+#' @param current.TSS a list of read coordinates falling to the currently investigated TSS region. Each list entry corresponds to a different sample / bed file.
+#' @param n=256 maximal interpolation points of the density estimation. The larger the slower the shift calculations will be.
+#' @param ADJ density smoothness adjustment
+#' @param p Additional margin over TSS region to remove the problem of forced shifts in empty regions
+#' @param weight.adj I wish I remembered. It is related to putting more reliability in densty estimation for regions with high read counts. Pretty sure it can be set to 0 and forgotten about.
+#' @keywords
+#' @export
+#' @examples
 
 get.curves<-function(current.TSS,n=256,ADJ,p, weight.adj)
 {
@@ -206,11 +220,20 @@ get.curves<-function(current.TSS,n=256,ADJ,p, weight.adj)
   return(curvearray)
 }
 
-##############################################################################
-                                        #Input:
-                                        #Output:
-                                        #Description:
-
+#' Function that estimates the shift curves (gammas).
+#'
+#' @param current.TSS a list of read coordinates falling to the currently investigated TSS region. Each list entry corresponds to a different sample / bed file.
+#' @param i TSS index (for progress bar purposes)
+#' @param N total number of intervals to be investigated (for progress bar purposes)
+#' @param cutoff minimum number of reads in all samples per TSS to start the shift analysis (defaults to 100)
+#' @param n maximal interpolation points of the density estimation. The larger the slower the shift calculations will be.
+#' @param ADJ density smoothness adjustment
+#' @param p Additional margin over TSS region to remove the problem of forced shifts in empty regions
+#' @param weight.adj I wish I remembered. It is related to putting more reliability in densty estimation for regions with high read counts. Pretty sure it can be set to 0 and forgotten about.
+#' @param penalty Shift penalty to control shifts in empty regions. High penalty limits shifting, lowpenalty allows all shifts necessary, but in case of empty region will produce false results (Shifts in empty regions)
+#' @keywords
+#' @export
+#' @examples
 get.gamma<-function(current.TSS,i, cutoff , ADJ, p, weight.adj,penalty,N,n=256 )
 {
   if ((i %% round(N/50))==0)
@@ -261,10 +284,14 @@ get.gamma<-function(current.TSS,i, cutoff , ADJ, p, weight.adj,penalty,N,n=256 )
   return(results)
 }
 
-################################################################################
-                                        #Input:
-                                        #Output:
-                                        #Description:
+#' Function that calculates the shift amount
+#'
+#' @param gam the curve representing the shift. vector.
+#' @param f1 artifacts of an old statistic calculation
+#' @param f2 artifacts of an old statistic calculation
+#' @keywords
+#' @export
+#' @examples
 get.stats.gamma<-function(gam, f1=0, f2=0)
 {
                                         #  f2.gaminv<-approx(time,f2,xout = gam)$y
@@ -279,12 +306,19 @@ get.stats.gamma<-function(gam, f1=0, f2=0)
   return(dev.norm)
 }
 
-
-################################################################################
-##Input:
-##Output:
-##Description:
-plot.TSS.data<-function(current.TSS,i,gamma.results,p, CEX=1, prefix, name)
+#' Finally the functions that produces the shift pictures over TSS region
+#'
+#' @param current.TSS a list of read coordinates falling to the currently investigated TSS region. Each list entry corresponds to a different sample / bed file.
+#' @param i TSS index
+#' @param p Additional margin over TSS region to remove the problem of forced shifts in empty regio
+#' @param gamma.results Calculated shift curves
+#' @param CEX cex size
+#' @param prefix prefix for the filename for the figure if you like
+#' @param name core of the filename
+#' @keywords
+#' @export
+#' @examples
+ plot.TSS.data<-function(current.TSS,i,gamma.results,p, CEX=1, prefix, name)
 {
   domain=c(min(unlist(current.TSS))-p, max(unlist(current.TSS))+p)
   n=dim(gamma.results)[1];
@@ -372,10 +406,15 @@ plot.TSS.data<-function(current.TSS,i,gamma.results,p, CEX=1, prefix, name)
 }
 
 
-##############################################################################
-##Input:
-##Output:
-##Description:
+#' Function that truncates the shift curves to account of artificial domain expantion
+#'
+#' @param gam The shift function
+#' @param method which side of the gam should be cut off. choice of: c('both', 'left', 'right', 'none')
+#' @param p how big the cutoff should be (in bp)
+#' @keywords
+#' @export
+#' @examples
+
 Jorges.function<-function(gam,method,p)
 {
   if (dim(gam)[1]<10)
